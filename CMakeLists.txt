@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(limit-widget VERSION 1.4.0 LANGUAGES NONE)
+project(limit-widget VERSION 1.6.0 LANGUAGES NONE)
 
 include(CTest)
 
