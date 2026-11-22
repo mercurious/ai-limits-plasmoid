@@ -6,7 +6,7 @@ development history. Follow these unless the user explicitly asks otherwise.
 ## Project overview
 
 A Plasma 6 panel widget that shows AI service usage limits (ChatGPT, Claude
-Code, GitHub Copilot, Mistral Vibe) in a compact panel representation with a
+Code, GitHub Copilot, Mistral Vibe, Antigravity) in a compact panel representation with a
 detailed popup. The collector is a Python script shipped inside the widget
 package; the UI is QML.
 
@@ -71,7 +71,7 @@ These are hard-won preferences from iterative visual review. Respect them.
 
 - Use **short names**. "Codex / ChatGPT" → "ChatGPT". "API Usage" → "API".
   "Vibe Code Usage" → "Vibe Code".
-- Provider short names in the panel are single letters: C, A, G, M.
+- Provider short names in the panel are single letters: C, A, G, M, V.
 
 ### Panel (taskbar) display
 
