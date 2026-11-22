@@ -116,6 +116,39 @@ class HelperTest(unittest.TestCase):
         self.assertEqual(codex["state"], "error")
         self.assertIsNone(codex["remaining"])
 
+    def test_antigravity_snapshot_fallback_and_windows_preserved(self):
+        payload = self.run_helper({
+            "limits.json": {
+                "providers": {
+                    "antigravity": {
+                        "windows": [
+                            {"id": "5h", "label": "5h", "remaining": 80, "limit": 100},
+                            {"id": "7d", "label": "7d", "remaining": 65, "limit": 100},
+                        ]
+                    }
+                }
+            }
+        })
+        antigravity = payload["providers"][4]
+        self.assertEqual(antigravity["id"], "antigravity")
+        self.assertEqual(antigravity["state"], "ok")
+        self.assertEqual([w["label"] for w in antigravity["windows"]], ["5h", "7d"])
+        self.assertEqual(antigravity["remaining"], 80)
+
+    def test_antigravity_command_source(self):
+        command = [
+            sys.executable,
+            "-c",
+            'import json; print(json.dumps({"windows": [{"id": "7d", "label": "Gemini 7d", "remaining": 90, "limit": 100}]}))',
+        ]
+        payload = self.run_helper({
+            "providers.json": {"providers": {"antigravity": {"command": command}}},
+        })
+        antigravity = payload["providers"][4]
+        self.assertEqual(antigravity["id"], "antigravity")
+        self.assertEqual(antigravity["state"], "ok")
+        self.assertEqual(antigravity["remaining"], 90)
+
     def test_elapsed_claude_window_is_stale_rather_than_zero(self):
         with tempfile.TemporaryDirectory() as temp:
             home = Path(temp)
