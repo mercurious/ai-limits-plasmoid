@@ -11,6 +11,7 @@ five-hour window plus a seven-day window where available.
 | Claude Code | `~/.claude/.credentials.json` (or `$CLAUDE_CONFIG_DIR`), then `GET https://api.anthropic.com/api/oauth/usage` | 5h and 7d percentage remaining, plus per-model weekly windows and reset times | This is the endpoint behind Claude Code's own `/usage`, not a documented public API. Falls back to the status-line cache, labelled stale. |
 | GitHub Copilot | `gh api copilot_internal/user`, using GitHub CLI's credential store | Premium-interaction remaining / entitlement and monthly reset | `copilot_internal/user` is used by current clients but is not documented as a public REST endpoint. |
 | Mistral Vibe | Opt-in Cookie header in `providers.json`, then `GET https://admin.mistral.ai/subscription`, with the console's `billing.vibeUsage` route as fallback | Both monthly allowances a plan includes — API and Vibe Code — remaining / budget in EUR | The allowances answer a browser session only; the pasted cookie expires. |
+| Antigravity | `agy -p /usage --output-format json`, the usage report of the agy CLI's own sign-in; the widget reads no token | Gemini 7d, and Claude/GPT 7d plus its 5h window while that applies | Needs the `agy` CLI signed in once. Each refresh starts agy for about 1.5 seconds. |
 
 Official usage pages remain available from each popup row:
 
@@ -117,6 +118,14 @@ expired; paste a fresh cookie" in the row's detail, and the API-key monthly
 window keeps showing unaffected. The page parsing requires exactly one
 distinct budget record; a partial or contradictory page reads as no data
 rather than a wrong number.
+
+## Antigravity
+
+Antigravity's allowances come from the usage report the `agy` CLI prints with `-p /usage --output-format json`. It is the same quota summary Antigravity's Model Quota view shows. agy answers it from the login it already holds, so the widget never reads or copies a token, and print mode sends no model prompt.
+
+The report has two groups. Gemini models have a weekly allowance. Claude and GPT models have a weekly allowance and a 5-hour allowance. Each is shown as the percentage remaining, with its reset. The 5-hour allowance is left out while it does not apply: the CLI prints it as `disabled` with no reset time once the weekly cap is spent.
+
+A refresh runs agy with `AGY_CLI_DISABLE_AUTO_UPDATE=true`, and with `open` and `xdg-open` shadowed by launchers that fail, so a sign-in that asks for a browser opens none on every refresh. A report that does not return `SUCCESS`, or a run that passes 60 seconds, is an error row, never a zero. Anything agy leaves running in its process group is killed.
 
 ## Normalized source contract
 

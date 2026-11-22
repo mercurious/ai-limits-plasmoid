@@ -10,14 +10,14 @@ issue and ask; a rough patch with a question attached is fine. See
 [`CONTRIBUTING.md`](CONTRIBUTING.md) to get started.
 
 A small Plasma 6 panel widget for keeping ChatGPT, Claude Code, GitHub
-Copilot, and Mistral Vibe limits in one monochrome view. The panel
-representation is a single compact summary (`C  — · A  — · G  — · M  —`);
+Copilot, Mistral Vibe, and Antigravity limits in one monochrome view. The panel
+representation is a single compact summary (`C  — · A  — · G  — · M  — · V  —`);
 clicking it opens a popup with one symbolic row per provider.
 
 The widget uses the local sign-ins already used by the provider CLIs; it does
 not scrape browser dashboards or read browser cookies. Codex, Claude, Copilot,
-and Mistral are all read automatically when their local CLI credentials are
-available. Unknown values stay `—`; they are never shown as zero.
+Mistral, and Antigravity are all read automatically when their local CLI
+credentials are available. Unknown values stay `—`; they are never shown as zero.
 
 ![AI Limits expanded widget](screenshots/widget-popup.png)
 
@@ -83,6 +83,11 @@ After installation, the helper automatically tries:
   holds a session cookie. The widget shows both allowances as counted EUR
   windows as of every refresh. The session expires, so re-paste when the row
   notes it.
+- **Antigravity:** the Gemini and Claude/GPT allowances from the `agy` CLI's own
+  `/usage` report. Install the `agy` CLI and sign in once with `agy`. The widget
+  never reads or copies that login, and nothing needs to be running: each
+  refresh runs the report in print mode, which sends no model prompt. The
+  5-hour allowance shows only while it applies.
 
 If the helper cannot read a Claude login, a status-line bridge can cache the
 same windows instead:

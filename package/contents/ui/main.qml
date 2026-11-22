@@ -98,7 +98,8 @@ PlasmoidItem {
         defaultProvider("codex", "ChatGPT", "C", "codex-symbolic.svg", "https://chatgpt.com/settings/usage"),
         defaultProvider("claude", "Claude Code", "A", "claude-symbolic.svg", "https://claude.ai/settings/usage"),
         defaultProvider("copilot", "GitHub Copilot", "G", "copilot-symbolic.svg", "https://github.com/settings/copilot"),
-        defaultProvider("mistral", "Mistral Vibe", "M", "mistral-symbolic.svg", "https://admin.mistral.ai/subscriptions")
+        defaultProvider("mistral", "Mistral Vibe", "M", "mistral-symbolic.svg", "https://admin.mistral.ai/subscriptions"),
+        defaultProvider("antigravity", "Antigravity", "V", "antigravity-symbolic.svg", "https://antigravity.google/")
     ]
 
     // A provider with nothing to show: no live sign-in, a plan without any
