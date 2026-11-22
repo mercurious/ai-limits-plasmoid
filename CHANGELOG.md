@@ -2,23 +2,20 @@
 
 ## 1.6.0
 
+- New: Antigravity's Gemini and Claude/GPT allowances, read from the `agy`
+  CLI's own `/usage` report. Install `agy` and sign in once; the widget never
+  reads or copies the login. The 5-hour allowance appears only while it
+  applies, and is left out while the CLI reports it as disabled.
 - New: a panel setting, "Show segment meters instead of percentages", draws
   each provider's values as monochrome, LCD-style segment columns. Every
   percentage the text would show gets a column, so Claude and Antigravity get
   two (session and weekly) and Copilot gets one. Segments fill from the
   bottom; unlit ones stay ghosted. Off by default.
-- Changed: "Hide providers with no usage yet" also hides them from the taskbar
-  tooltip.
-
-## 1.5.0
-
-- New: Antigravity's Gemini and Claude/GPT allowances, read from the `agy`
-  CLI's own `/usage` report. Install `agy` and sign in once; the widget never
-  reads or copies the login. The 5-hour allowance appears only while it
-  applies, and is left out while the CLI reports it as disabled.
 - Changed: the panel shows an exhausted window's remaining percentage, like
   every other window, instead of only the time until its reset. The reset
   stays in the popup's R hint.
+- Changed: "Hide providers with no usage yet" also hides them from the taskbar
+  tooltip.
 
 ## 1.4.1
 
