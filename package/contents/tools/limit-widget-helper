@@ -88,7 +88,9 @@ ANTIGRAVITY_TIMEOUT_SECONDS = 60
 ANTIGRAVITY_PERIODS = {"5h": "5h", "weekly": "7d"}
 ANTIGRAVITY_FAMILIES = {
     "Gemini Models": "Gemini",
+    "Gemini models": "Gemini",
     "Claude and GPT models": "Claude/GPT",
+    "Claude and GPT Models": "Claude/GPT",
 }
 
 PROVIDERS = (
@@ -1082,7 +1084,7 @@ def _kill_session(process: subprocess.Popen[Any]) -> None:
     """SIGKILL whatever is still running in the process group of a report."""
     try:
         os.killpg(process.pid, signal.SIGKILL)
-    except ProcessLookupError:
+    except OSError:
         pass
 
 
@@ -1113,7 +1115,7 @@ def antigravity_windows(report: dict[str, Any]) -> list[dict[str, Any]]:
             if fraction is None or not math.isfinite(fraction):
                 continue
             reset_at = bucket.get("reset_time")
-            if not isinstance(reset_at, str):
+            if not isinstance(reset_at, str) or not reset_at.strip():
                 reset_at = None
             if reset_at is None and fraction <= 0:
                 continue

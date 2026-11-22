@@ -711,6 +711,20 @@ class AntigravityTest(unittest.TestCase):
         labels = [w["label"] for w in self.helper.antigravity_windows(fixture("antigravity-usage.json"))]
         self.assertEqual(labels, ["Gemini 7d", "Claude/GPT 7d"])
 
+    def test_disabled_bucket_with_blank_reset_time_is_skipped(self):
+        report = fixture("antigravity-usage.json")
+        five_hour = report["command"]["data"]["groups"][1]["buckets"][1]
+        five_hour["remaining_fraction"] = 0
+        five_hour["reset_time"] = "   "
+        labels = [w["label"] for w in self.helper.antigravity_windows(report)]
+        self.assertEqual(labels, ["Gemini 7d", "Claude/GPT 7d"])
+
+    def test_group_name_casing_variations_are_mapped(self):
+        report = fixture("antigravity-usage.json")
+        report["command"]["data"]["groups"][1]["name"] = "Claude and GPT Models"
+        labels = [w["label"] for w in self.helper.antigravity_windows(report)]
+        self.assertEqual(labels, ["Gemini 7d", "Claude/GPT 7d"])
+
     def test_active_five_hour_window_leads_the_weekly_ones(self):
         """The panel reads the first window as the session value, so 5h leads."""
         report = fixture("antigravity-usage.json")
@@ -777,6 +791,13 @@ class AntigravityTest(unittest.TestCase):
         self.assertIsNone(report)
         self.assertEqual(error, "Antigravity usage report timed out")
         self.assertLess(time.monotonic() - started, 10)
+
+    def test_kill_session_ignores_permission_error_from_recycled_pid(self):
+        fake_process = mock.Mock()
+        fake_process.pid = 99999
+        with mock.patch("os.killpg", side_effect=PermissionError("Operation not permitted")):
+            # Must not raise PermissionError
+            self.helper._kill_session(fake_process)
 
     def test_source_reports_the_buckets_agy_returns(self):
         program, _ = self.fake_agy(json.dumps(fixture("antigravity-usage.json")))
