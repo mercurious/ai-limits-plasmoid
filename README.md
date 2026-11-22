@@ -66,7 +66,10 @@ After installation, the helper automatically tries:
 - **GitHub Copilot:** `gh api copilot_internal/user`, reusing GitHub CLI's
   keychain-backed login. Run `gh auth login` if needed. This is the endpoint
   used by current Copilot clients, but GitHub does not document it as a public
-  third-party API, so it may change.
+  third-party API, so it may change. gh answers for its active account; if you
+  are logged in to several, pin the one with Copilot in `providers.json` with
+  `{"providers": {"copilot": {"user": "octocat"}}}` so `gh auth switch` does
+  not move the row.
 - **Claude Code:** the OAuth login in `~/.claude/.credentials.json` (or
   `$CLAUDE_CONFIG_DIR`), read through the same usage endpoint Claude Code's own
   `/usage` command uses. Sign in with the Claude Code CLI. Nothing needs to be

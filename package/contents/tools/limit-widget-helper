@@ -618,19 +618,49 @@ def codex_source() -> dict[str, Any]:
     return {"state": "unauthenticated", "detail": "Codex login not found"}
 
 
+def copilot_user() -> str | None:
+    """The GitHub account Copilot usage is read from, pinned in providers.json.
+
+    gh answers for its active account, so `gh auth switch` would otherwise move
+    the row to an account that may have no Copilot at all. Pin one with
+    {"providers": {"copilot": {"user": "octocat"}}}; it must be logged in to gh.
+    """
+    record = provider_records(load_json(config_dir() / "providers.json")).get("copilot")
+    user = record.get("user") if isinstance(record, dict) else None
+    if not isinstance(user, str) or not user.strip():
+        return None
+    return user.strip()
+
+
 def copilot_source() -> dict[str, Any]:
     if not shutil_which("gh"):
         return {"state": "unauthenticated", "detail": "GitHub CLI (gh) is not installed"}
-    try:
-        completed = subprocess.run(
-            ["gh", "api", "copilot_internal/user"],
+
+    def gh(arguments: list[str], env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["gh", *arguments],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             timeout=COMMAND_TIMEOUT_SECONDS,
             check=False,
+            env=env,
         )
+
+    user = copilot_user()
+    try:
+        env = None
+        if user:
+            # The pinned account's token goes to gh through its environment,
+            # so gh's active account is left alone.
+            token = gh(["auth", "token", "--user", user])
+            if token.returncode != 0 or not token.stdout.strip():
+                return {"state": "unauthenticated",
+                        "detail": f"Run gh auth login for {user} to read Copilot usage"}
+            env = dict(os.environ)
+            env["GH_TOKEN"] = token.stdout.strip()
+        completed = gh(["api", "copilot_internal/user"], env)
     except (OSError, subprocess.TimeoutExpired):
         return {"state": "error", "detail": "GitHub usage request timed out"}
     if completed.returncode != 0:
@@ -643,6 +673,10 @@ def copilot_source() -> dict[str, Any]:
     snapshots = payload.get("quota_snapshots") if isinstance(payload, dict) else None
     quota = snapshots.get("premium_interactions") if isinstance(snapshots, dict) else None
     if not isinstance(quota, dict):
+        if isinstance(payload, dict) and payload.get("access_type_sku") == "no_access":
+            login = payload.get("login")
+            account = f"GitHub account {login}" if isinstance(login, str) and login else "This GitHub account"
+            return {"state": "unknown", "detail": f"{account} has no Copilot access"}
         return {"state": "unknown", "detail": "GitHub returned no premium-request quota"}
     if quota.get("unlimited") is True:
         return {"state": "ok", "detail": "Premium interactions unlimited"}

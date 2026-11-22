@@ -51,6 +51,7 @@ class VendorParsingTest(unittest.TestCase):
         self.helper.mistral_cookie = lambda: None
         # Likewise for CLIProxyAPI's OAuth store: each test opts in explicitly.
         self.helper.codex_proxy_auth_paths = lambda: []
+        self.helper.copilot_user = lambda: None
 
     def windows_by_label(self, record):
         return {w["label"]: w for w in record["windows"]}
@@ -315,6 +316,49 @@ class VendorParsingTest(unittest.TestCase):
         self.assertEqual(record["state"], "ok")
         self.assertEqual(record["windows"][0]["remaining"], 0)
         self.assertEqual(record["windows"][0]["limit"], 300)
+
+    def test_copilot_pinned_user_is_queried_with_its_own_token(self):
+        """A pinned account is read even while gh's active one has no Copilot."""
+        h = self.helper
+        h.copilot_user = lambda: "octocat"
+        h.shutil_which = lambda name: "/usr/bin/gh"
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append((command, (kwargs.get("env") or {}).get("GH_TOKEN")))
+            if command[1:3] == ["auth", "token"]:
+                return subprocess.CompletedProcess(command, 0, "pinned-token\n", "")
+            return subprocess.CompletedProcess(command, 0, json.dumps(fixture("copilot-user.json")), "")
+
+        h.subprocess.run = run
+        record = h.copilot_source()
+        self.assertEqual(calls[0][0], ["gh", "auth", "token", "--user", "octocat"])
+        self.assertEqual(calls[1], (["gh", "api", "copilot_internal/user"], "pinned-token"))
+        self.assertEqual(record["windows"][0]["remaining"], 217)
+
+    def test_copilot_pinned_user_not_logged_in_is_unauthenticated(self):
+        h = self.helper
+        h.copilot_user = lambda: "octocat"
+        h.shutil_which = lambda name: "/usr/bin/gh"
+        h.subprocess.run = lambda command, **k: subprocess.CompletedProcess(
+            command, 1, "", "no oauth token found for octocat")
+
+        record = h.copilot_source()
+        self.assertEqual(record["state"], "unauthenticated")
+        self.assertIn("octocat", record["detail"])
+
+    def test_copilot_account_without_access_names_the_account(self):
+        h = self.helper
+        payload = fixture("copilot-user.json")
+        payload.update({"quota_snapshots": None, "access_type_sku": "no_access", "login": "octocat"})
+        h.shutil_which = lambda name: "/usr/bin/gh"
+        h.subprocess.run = lambda *a, **k: subprocess.CompletedProcess(
+            a[0] if a else [], 0, json.dumps(payload), "")
+
+        record = h.copilot_source()
+        self.assertEqual(record["state"], "unknown")
+        self.assertNotIn("windows", record)
+        self.assertEqual(record["detail"], "GitHub account octocat has no Copilot access")
 
     # --- Mistral ---------------------------------------------------------
 

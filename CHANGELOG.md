@@ -9,6 +9,11 @@
   weekly cap was spent. agy 1.5.14 marks the inapplicable 5-hour bucket as
   `"disabled": true` with a full balance instead of an empty one; the
   collector now leaves it out either way.
+- Fixed: Copilot came and went when GitHub CLI held several logins, because
+  it followed gh's active account. Pin one with
+  `{"providers": {"copilot": {"user": "octocat"}}}` in `providers.json`; its
+  token is used without switching gh. An account with no Copilot is now named
+  as such instead of "no premium-request quota".
 
 ## 1.6.0
 
