@@ -76,9 +76,9 @@ These are hard-won preferences from iterative visual review. Respect them.
 
 - Show **both values** when a provider has multiple windows (e.g. `64%/36%`
   for Mistral's Month/Vibe, `100%/0%` for Codex's 5h/7d).
-- When a rolling window is exhausted (0%), the panel shows **only the time
-  until reset** as a bare duration — no percentages, no "resets" word, no
-  period label. Example: `5H` or `7D` or `30min`.
+- When a rolling window is exhausted (0%), the panel still shows its remaining
+  percentage (`0%`, or `0%/64%` beside a second window). The time until the
+  reset belongs to the popup's `R` hint only, never the panel.
 - Use the **biggest denominator** for durations: `3d`, `6h`, `30min`, `15s`.
 - **Capitalize** period labels: `5h` → `5H`, `7d` → `7D` (including per-model
   variants like `Opus 7D`).

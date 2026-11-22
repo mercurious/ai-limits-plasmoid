@@ -6,6 +6,9 @@
   CLI's own `/usage` report. Install `agy` and sign in once; the widget never
   reads or copies the login. The 5-hour allowance appears only while it
   applies, and is left out while the CLI reports it as disabled.
+- Changed: the panel shows an exhausted window's remaining percentage, like
+  every other window, instead of only the time until its reset. The reset
+  stays in the popup's R hint.
 
 ## 1.4.1
 

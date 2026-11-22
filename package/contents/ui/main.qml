@@ -167,12 +167,6 @@ PlasmoidItem {
         return String(known) + " / " + String(providers.length) + " available";
     }
     readonly property string compactSummary: orderedProviders.map(function (provider) {
-        // As in the panel: an exhausted window makes the percentages
-        // unusable, so the tooltip shows the time until the reset alone.
-        var reset = root.panelReset(provider);
-        if (reset) {
-            return provider.name + ": " + reset;
-        }
         var value = root.compactValue(provider);
         // The panel itself has no room for a word, so spell the direction out
         // wherever there is: an unlabelled "99%" reads as consumption.
@@ -312,29 +306,7 @@ PlasmoidItem {
     // a cell would land on the widget's right edge and unbalance its
     // margins.
     function compactProviderWidth(provider) {
-        return 16 + 3 + Math.ceil(compactFontMetrics.advanceWidth(root.panelValue(provider)));
-    }
-
-    // The value the panel draws for one provider: the compact share, or —
-    // when a rolling window is exhausted and the allowance cannot be used
-    // at all — the time until the closest reset alone. The percentages then
-    // carry no information.
-    function panelValue(provider) {
-        var reset = root.panelReset(provider);
-        return reset ? reset : root.compactValue(provider);
-    }
-
-    // The time until the closest reset of an exhausted rolling window, in
-    // the biggest unit that expresses it: "30min", "3d". An exhausted window
-    // blocks the provider outright — with Claude and ChatGPT, either period
-    // at 0% stops all usage — so naming the window adds nothing, and the
-    // panel has no room for a word besides.
-    function panelReset(provider) {
-        var found = root.closestExhaustedReset(provider);
-        if (!found) {
-            return "";
-        }
-        return root.formatResetIn(found.reset - Date.now());
+        return 16 + 3 + Math.ceil(compactFontMetrics.advanceWidth(root.compactValue(provider)));
     }
 
     // The time until a reset, in the biggest unit that expresses it:
@@ -539,7 +511,7 @@ PlasmoidItem {
                     }
 
                     QQC2.Label {
-                        text: root.panelValue(horizontalProvider.modelData)
+                        text: root.compactValue(horizontalProvider.modelData)
                         font.pixelSize: 10
                         color: Kirigami.Theme.textColor
                     }
@@ -571,7 +543,7 @@ PlasmoidItem {
                     }
 
                     QQC2.Label {
-                        text: root.panelValue(verticalProvider.modelData)
+                        text: root.compactValue(verticalProvider.modelData)
                         font.pixelSize: 9
                         color: Kirigami.Theme.textColor
                     }
