@@ -732,6 +732,17 @@ class AntigravityTest(unittest.TestCase):
         labels = [w["label"] for w in self.helper.antigravity_windows(report)]
         self.assertEqual(labels, ["Gemini 7d", "Claude/GPT 7d"])
 
+    def test_bucket_flagged_disabled_is_skipped_even_when_full(self):
+        """agy 1.5.14 marks the inapplicable 5h bucket "disabled": true with a
+        remaining_fraction of 1 and no reset; it must not appear as 100% left."""
+        report = fixture("antigravity-usage.json")
+        five_hour = report["command"]["data"]["groups"][1]["buckets"][1]
+        five_hour.pop("reset_time", None)
+        five_hour["disabled"] = True
+        five_hour["remaining_fraction"] = 1
+        labels = [w["label"] for w in self.helper.antigravity_windows(report)]
+        self.assertEqual(labels, ["Gemini 7d", "Claude/GPT 7d"])
+
     def test_group_name_casing_variations_are_mapped(self):
         report = fixture("antigravity-usage.json")
         report["command"]["data"]["groups"][1]["name"] = "Claude and GPT Models"

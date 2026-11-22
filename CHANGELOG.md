@@ -5,6 +5,10 @@
 - Fixed: Copilot keeps showing its allowance once usage passes the plan limit.
   GitHub reports spending past the allowance as a negative balance, which the
   collector rejected as unreadable, so the row went blank. It now shows 0 left.
+- Fixed: Antigravity showed a third, full "Claude/GPT 5H" bar while the
+  weekly cap was spent. agy 1.5.14 marks the inapplicable 5-hour bucket as
+  `"disabled": true` with a full balance instead of an empty one; the
+  collector now leaves it out either way.
 
 ## 1.6.0
 
