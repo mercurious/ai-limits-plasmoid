@@ -28,6 +28,15 @@ PlasmoidItem {
     readonly property bool showUnsupported: Plasmoid.configuration.showUnsupported !== false
     readonly property bool hideEmptyProviders: Plasmoid.configuration.hideEmptyProviders === true
     readonly property bool showExhaustedReset: Plasmoid.configuration.showExhaustedReset !== false
+    readonly property bool segmentMeters: Plasmoid.configuration.segmentMeters === true
+    // Segment meter geometry. The horizontal panel has the height for five
+    // segments; the vertical one is 38 px wide, so its columns are narrower
+    // and shorter. compactProviderWidth sums these, so they must match the
+    // widths SegmentMeters lays out.
+    readonly property int meterSegments: root.horizontalPanel ? 5 : 4
+    readonly property int meterSegmentHeight: root.horizontalPanel ? 3 : 2
+    readonly property int meterColumnWidth: root.horizontalPanel ? 6 : 5
+    readonly property int meterColumnGap: 2
     // What the popup's reset hint contains: the short duration until the
     // reset, the absolute date, or both. Anything unknown falls back to the
     // absolute date, which is what the hint has always shown.
@@ -255,7 +264,12 @@ PlasmoidItem {
         return Math.max(0, Math.min(100, item.remaining / item.limit * 100));
     }
 
-    function compactValue(provider) {
+    // The percentages the panel shows for a provider, in the order it shows
+    // them: the session window first, then the tightest weekly one, or the
+    // second window of a provider with no weekly one. An empty list means no
+    // value. compactValue's text and the segment meters both read this list,
+    // so the two display modes can never disagree about a provider's numbers.
+    function compactPercents(provider) {
         var entries = [];
         if (provider && provider.windows && typeof provider.windows.length === "number") {
             for (var index = 0; index < provider.windows.length; index++) {
@@ -283,7 +297,7 @@ PlasmoidItem {
                 }
             }
             if (weekly.length > 0) {
-                return String(Math.round(entries[0].percent)) + "%/" + String(Math.round(Math.min.apply(null, weekly))) + "%";
+                return [entries[0].percent, Math.min.apply(null, weekly)];
             }
             // With no weekly window, a second window is a separate budget of
             // the same length — Mistral's Vibe Code allowance next to its API
@@ -291,21 +305,35 @@ PlasmoidItem {
             // rather than only the tighter one.
             if (entries.length > 1) {
                 var rest = entries.slice(1).map(function (entry) { return entry.percent; });
-                return String(Math.round(entries[0].percent)) + "%/" + String(Math.round(Math.min.apply(null, rest))) + "%";
+                return [entries[0].percent, Math.min.apply(null, rest)];
             }
-            return String(Math.round(entries[0].percent)) + "%";
+            return [entries[0].percent];
         }
         if (provider && typeof provider.detail === "string" && provider.detail.toLowerCase().indexOf("unlimited") !== -1) {
-            return "100%";
+            return [100];
         }
-        return "—";
+        return [];
+    }
+
+    function compactValue(provider) {
+        var percents = root.compactPercents(provider);
+        if (percents.length === 0) {
+            return "—";
+        }
+        return percents.map(function (percent) {
+            return String(Math.round(percent)) + "%";
+        }).join("/");
     }
 
     // Exactly what the panel draws per provider: the icon, the RowLayout's
-    // 3 px spacing, and the text. No padding beyond that — any slack inside
-    // a cell would land on the widget's right edge and unbalance its
-    // margins.
+    // 3 px spacing, and either the text or, in segment mode, the segment
+    // columns. No padding beyond that — any slack inside a cell would land on
+    // the widget's right edge and unbalance its margins.
     function compactProviderWidth(provider) {
+        var columns = root.segmentMeters ? root.compactPercents(provider).length : 0;
+        if (columns > 0) {
+            return 16 + 3 + columns * root.meterColumnWidth + (columns - 1) * root.meterColumnGap;
+        }
         return 16 + 3 + Math.ceil(compactFontMetrics.advanceWidth(root.compactValue(provider)));
     }
 
@@ -497,6 +525,7 @@ PlasmoidItem {
                 delegate: RowLayout {
                     id: horizontalProvider
                     required property var modelData
+                    readonly property var percents: root.compactPercents(horizontalProvider.modelData)
                     Layout.preferredWidth: root.compactProviderWidth(horizontalProvider.modelData)
                     Layout.fillHeight: true
                     spacing: 3
@@ -511,9 +540,21 @@ PlasmoidItem {
                     }
 
                     QQC2.Label {
+                        // A segment meter stands in for the text, except where there is no value.
+                        visible: !root.segmentMeters || horizontalProvider.percents.length === 0
                         text: root.compactValue(horizontalProvider.modelData)
                         font.pixelSize: 10
                         color: Kirigami.Theme.textColor
+                    }
+
+                    SegmentMeters {
+                        visible: root.segmentMeters && horizontalProvider.percents.length > 0
+                        Layout.alignment: Qt.AlignVCenter
+                        percents: horizontalProvider.percents
+                        segments: root.meterSegments
+                        segmentHeight: root.meterSegmentHeight
+                        columnWidth: root.meterColumnWidth
+                        columnGap: root.meterColumnGap
                     }
                 }
             }
@@ -530,6 +571,7 @@ PlasmoidItem {
                 delegate: RowLayout {
                     id: verticalProvider
                     required property var modelData
+                    readonly property var percents: root.compactPercents(verticalProvider.modelData)
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 3
 
@@ -543,9 +585,21 @@ PlasmoidItem {
                     }
 
                     QQC2.Label {
+                        // A segment meter stands in for the text, except where there is no value.
+                        visible: !root.segmentMeters || verticalProvider.percents.length === 0
                         text: root.compactValue(verticalProvider.modelData)
                         font.pixelSize: 9
                         color: Kirigami.Theme.textColor
+                    }
+
+                    SegmentMeters {
+                        visible: root.segmentMeters && verticalProvider.percents.length > 0
+                        Layout.alignment: Qt.AlignVCenter
+                        percents: verticalProvider.percents
+                        segments: root.meterSegments
+                        segmentHeight: root.meterSegmentHeight
+                        columnWidth: root.meterColumnWidth
+                        columnGap: root.meterColumnGap
                     }
                 }
             }

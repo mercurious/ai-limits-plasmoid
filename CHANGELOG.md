@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.0
+
+- New: a panel setting, "Show segment meters instead of percentages", draws
+  each provider's values as monochrome, LCD-style segment columns. Every
+  percentage the text would show gets a column, so Claude and Antigravity get
+  two (session and weekly) and Copilot gets one. Segments fill from the
+  bottom; unlit ones stay ghosted. Off by default.
+
 ## 1.5.0
 
 - New: Antigravity's Gemini and Claude/GPT allowances, read from the `agy`

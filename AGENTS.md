@@ -15,6 +15,7 @@ package/contents/
 ├── tools/limit-widget-helper     # Python collector (single file)
 ├── ui/main.qml                   # PlasmoidItem — panel + popup
 ├── ui/ProviderRow.qml            # One provider row (popup)
+├── ui/SegmentMeters.qml          # Panel segment meters (monochrome LCD columns)
 ├── ui/config/ConfigGeneral.qml   # Settings page (KCM.SimpleKCM)
 ├── config/config.qml             # Config category definition
 ├── config/main.xml               # Config schema (settings keys)

@@ -12,7 +12,7 @@ issue and ask; a rough patch with a question attached is fine. See
 A small Plasma 6 panel widget for keeping ChatGPT, Claude Code, GitHub
 Copilot, Mistral Vibe, and Antigravity limits in one monochrome view. The panel
 representation is a single compact summary (`C  — · A  — · G  — · M  — · V  —`);
-clicking it opens a popup with one symbolic row per provider.
+clicking it opens a popup with one symbolic row per provider. A setting can draw the same values as monochrome, LCD-style segment meters instead of percentages.
 
 The widget uses the local sign-ins already used by the provider CLIs; it does
 not scrape browser dashboards or read browser cookies. Codex, Claude, Copilot,

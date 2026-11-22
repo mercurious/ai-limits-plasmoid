@@ -15,6 +15,7 @@ KCM.SimpleKCM {
     property alias cfg_showUnsupported: showUnsupported.checked
     property alias cfg_hideEmptyProviders: hideEmptyProviders.checked
     property alias cfg_showExhaustedReset: showExhaustedReset.checked
+    property alias cfg_segmentMeters: segmentMeters.checked
     property alias cfg_resetTextFormat: resetTextFormat.currentValue
     // Not aliases: the checkbox list and the order buttons write these as
     // comma-separated strings.
@@ -138,6 +139,12 @@ KCM.SimpleKCM {
             Kirigami.FormData.label: i18n("Display:")
             text: i18n("Show the closest reset when a 5h/weekly window is exhausted")
             checked: true
+        }
+
+        QQC2.CheckBox {
+            id: segmentMeters
+            Kirigami.FormData.label: i18n("Display:")
+            text: i18n("Show segment meters instead of percentages in the panel")
         }
 
         QQC2.ComboBox {

@@ -23,6 +23,12 @@
         <entry name="showExhaustedReset" type="Bool">
             <default>true</default>
         </entry>
+        <!-- Draw the panel's values as monochrome, LCD-style segment columns
+             instead of percentages: one column for each value the text would
+             show, so Claude and Antigravity get two and Copilot gets one. -->
+        <entry name="segmentMeters" type="Bool">
+            <default>false</default>
+        </entry>
         <!-- What the popup's reset hint contains: the short duration until
              the reset ("30min"), the absolute date ("14 Oct 12:25"), or
              both. The taskbar always shows the short duration alone. -->
