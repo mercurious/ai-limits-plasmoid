@@ -303,6 +303,19 @@ class VendorParsingTest(unittest.TestCase):
         self.assertNotIn("windows", record)
         self.assertIn("unlimited", record["detail"])
 
+    def test_copilot_overage_shows_as_exhausted_not_unknown(self):
+        h = self.helper
+        payload = fixture("copilot-user.json")
+        payload["quota_snapshots"]["premium_interactions"]["remaining"] = -12
+        h.shutil_which = lambda name: "/usr/bin/gh"
+        h.subprocess.run = lambda *a, **k: subprocess.CompletedProcess(
+            a[0] if a else [], 0, json.dumps(payload), "")
+
+        record = h.copilot_source()
+        self.assertEqual(record["state"], "ok")
+        self.assertEqual(record["windows"][0]["remaining"], 0)
+        self.assertEqual(record["windows"][0]["limit"], 300)
+
     # --- Mistral ---------------------------------------------------------
 
     def stub_mistral_web(self, cookie=None, page=None, page_status=200,

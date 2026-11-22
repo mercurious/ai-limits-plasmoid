@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.1
+
+- Fixed: Copilot keeps showing its allowance once usage passes the plan limit.
+  GitHub reports spending past the allowance as a negative balance, which the
+  collector rejected as unreadable, so the row went blank. It now shows 0 left.
+
 ## 1.6.0
 
 - New: Antigravity's Gemini and Claude/GPT allowances, read from the `agy`

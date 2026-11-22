@@ -647,10 +647,14 @@ def copilot_source() -> dict[str, Any]:
     if quota.get("unlimited") is True:
         return {"state": "ok", "detail": "Premium interactions unlimited"}
 
-    remaining = finite_number(quota.get("remaining"))
+    remaining = quota.get("remaining")
     limit = finite_number(quota.get("entitlement"))
-    if remaining is None or limit is None or limit <= 0:
+    if (isinstance(remaining, bool) or not isinstance(remaining, (int, float))
+            or limit is None or limit <= 0):
         return {"state": "unknown", "detail": "GitHub returned no finite premium-request quota"}
+    # Spending past the allowance with overage permitted makes GitHub report a
+    # negative balance. That is an exhausted allowance, so it shows as 0 left.
+    remaining = max(0, remaining)
     reset_at = payload.get("quota_reset_date_utc") or payload.get("quota_reset_date")
     return {
         "state": "ok",
