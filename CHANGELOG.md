@@ -7,6 +7,8 @@
   percentage the text would show gets a column, so Claude and Antigravity get
   two (session and weekly) and Copilot gets one. Segments fill from the
   bottom; unlit ones stay ghosted. Off by default.
+- Changed: "Hide providers with no usage yet" also hides them from the taskbar
+  tooltip.
 
 ## 1.5.0
 

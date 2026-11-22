@@ -115,7 +115,7 @@ These are hard-won preferences from iterative visual review. Respect them.
 
 ### "Hide providers with no usage yet" setting
 
-- Applies to the **panel/taskbar only** — the popup always shows all rows.
+- Applies to the **panel/taskbar and its tooltip** — the popup always shows all rows.
 - A provider at **100% (untouched allowance)** counts as "no usage yet" and
   should be hidden.
 - Signed-out (`unauthenticated`) and allowance-less providers are hidden.

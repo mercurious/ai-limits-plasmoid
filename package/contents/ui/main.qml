@@ -151,8 +151,9 @@ PlasmoidItem {
         }
         return root.showUnsupported || provider.state === "ok" || provider.state === "stale";
     })
-    // The panel alone honors "hide providers with no usage yet" — the popup is
-    // the place to look a provider up in, so it keeps listing every row.
+    // The panel and the tooltip alone honor "hide providers with no usage yet":
+    // the popup is the place to look a provider up in, so it keeps listing
+    // every row.
     // Providers discovered through the optional CodexBar CLI are also shown in
     // the popup but kept out of the panel. There can be dozens of them, and
     // the panel representation grows with every row it draws, so including
@@ -175,7 +176,12 @@ PlasmoidItem {
         }
         return String(known) + " / " + String(providers.length) + " available";
     }
-    readonly property string compactSummary: orderedProviders.map(function (provider) {
+    // The one-line summary the tooltip shows. It honors "hide providers with no
+    // usage yet", so an empty provider drops out of it as it drops out of the
+    // panel.
+    readonly property string compactSummary: orderedProviders.filter(function (provider) {
+        return !root.hideEmptyProviders || !root.providerIsEmpty(provider);
+    }).map(function (provider) {
         var value = root.compactValue(provider);
         // The panel itself has no room for a word, so spell the direction out
         // wherever there is: an unlabelled "99%" reads as consumption.
@@ -218,7 +224,8 @@ PlasmoidItem {
     // compact panel representation below intentionally does not render it.
     Plasmoid.icon: "view-statistics"
     toolTipMainText: i18n("AI limits")
-    toolTipSubText: root.compactSummary + " — " + root.statusLine
+    // With every provider hidden there is no summary to lead with.
+    toolTipSubText: root.compactSummary ? root.compactSummary + " — " + root.statusLine : root.statusLine
     Plasmoid.status: root.loading ? PlasmaCore.Types.ActiveStatus : PlasmaCore.Types.PassiveStatus
 
     function defaultProvider(id, name, shortName, symbol, url) {
