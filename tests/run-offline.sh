@@ -12,6 +12,8 @@
 #   bin/gh            shadows the real gh, which is a Go binary and so is not
 #                     affected by the Python guard at all.
 #   bin/codexbar      same, for the optional CodexBar CLI.
+#   bin/agy           same, for the Antigravity CLI, which reads quota from a
+#                     signed-in account.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,5 +52,12 @@ if ! command -v codexbar >/dev/null || codexbar usage --format json >/dev/null 2
     exit 1
 fi
 echo "   codexbar stub armed: no external CLI is consulted"
+
+# Checked by path rather than by running it: a live agy would reach the account.
+if [ "$(command -v agy)" != "$here/nonet/bin/agy" ]; then
+    echo "   AGY STUB NOT ARMED: a different agy is first on PATH" >&2
+    exit 1
+fi
+echo "   agy stub armed: Antigravity quota cannot be read"
 
 exit $status

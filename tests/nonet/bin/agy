@@ -1,0 +1,10 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 SLASHLogin
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# agy is the Antigravity CLI, which answers quota from a signed-in account.
+# Shadow it in tests and CI so the suite never depends on whether a developer
+# has it installed, and so it cannot reach a provider. Exiting non-zero is the
+# "not usable" path.
+echo "agy is stubbed out in the test environment" >&2
+exit 1

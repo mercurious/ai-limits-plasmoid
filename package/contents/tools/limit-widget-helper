@@ -5,7 +5,9 @@
 
 The helper uses the same local sign-ins as the vendor CLIs: Codex's OAuth file,
 GitHub CLI's credential store, and Claude Code's OAuth login, which is read
-through the usage endpoint behind Claude Code's own /usage. Mistral exposes a
+through the usage endpoint behind Claude Code's own /usage. Antigravity's quota
+comes from the agy CLI's own usage report, so its login is never read here.
+Mistral exposes a
 plan's allowances only to a browser session, so they are read from an opt-in
 Cookie header pasted into the widget's own configuration. The status-line
 bridge is only a fallback for Claude logins this helper cannot read, and its
@@ -27,8 +29,11 @@ import math
 import os
 from pathlib import Path
 import re
+import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -73,6 +78,19 @@ FLIGHT_TEXT_TAGS = frozenset(b"TAOoUSsLlGgMmV")
 # request identifies this widget instead of impersonating a vendor CLI.
 USER_AGENT = "limit-widget/0.3"
 
+# agy's /usage print report is the quota summary Antigravity's own Model Quota
+# view shows. It answers from the login agy already holds, so no token is read
+# here, and print mode sends no model prompt.
+ANTIGRAVITY_USAGE_ARGS = ("-p", "/usage", "--output-format", "json")
+ANTIGRAVITY_TIMEOUT_SECONDS = 60
+# Period labels in the widget's convention: the popup capitalises them, and the
+# panel treats a label ending in "7d" as a weekly window.
+ANTIGRAVITY_PERIODS = {"5h": "5h", "weekly": "7d"}
+ANTIGRAVITY_FAMILIES = {
+    "Gemini Models": "Gemini",
+    "Claude and GPT models": "Claude/GPT",
+}
+
 PROVIDERS = (
     {
         "id": "codex",
@@ -105,6 +123,14 @@ PROVIDERS = (
         "symbol": "mistral-symbolic.svg",
         "url": "https://admin.mistral.ai/subscriptions",
         "defaultDetail": "Add a Mistral cookie in providers.json to read usage",
+    },
+    {
+        "id": "antigravity",
+        "name": "Antigravity",
+        "shortName": "V",
+        "symbol": "antigravity-symbolic.svg",
+        "url": "https://antigravity.google/",
+        "defaultDetail": "Install the agy CLI and sign in to read usage",
     },
 )
 
@@ -990,6 +1016,141 @@ def mistral_source() -> dict[str, Any]:
     return {"state": "unknown", "detail": "Mistral returned no allowance"}
 
 
+def antigravity_program() -> str | None:
+    """The agy CLI on PATH, or in the installer's default location."""
+    found = shutil_which("agy")
+    if found:
+        return found
+    fallback = Path.home() / ".local" / "bin" / "agy"
+    if fallback.is_file() and os.access(fallback, os.X_OK):
+        return str(fallback)
+    return None
+
+
+def antigravity_report(program: str) -> tuple[dict[str, Any] | None, str | None]:
+    """Run agy's usage report and return it, or the reason it is missing."""
+    with tempfile.TemporaryDirectory(prefix="limit-widget-agy-") as launchers:
+        # agy's sign-in can ask for a browser, and it would open one on every
+        # refresh. Failing launchers placed first on PATH keep that silent.
+        for name in ("open", "xdg-open"):
+            launcher = Path(launchers) / name
+            launcher.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+            launcher.chmod(0o700)
+        env = dict(os.environ)
+        env["AGY_CLI_DISABLE_AUTO_UPDATE"] = "true"
+        env["BROWSER"] = "/bin/false"
+        env["PATH"] = launchers + os.pathsep + os.environ.get("PATH", os.defpath)
+        # The report is read from a file rather than a pipe: a process agy leaves
+        # behind can keep a pipe open and stall the read, but it cannot stall a file.
+        with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as output:
+            try:
+                process = subprocess.Popen(
+                    [program, *ANTIGRAVITY_USAGE_ARGS],
+                    stdin=subprocess.DEVNULL,
+                    stdout=output,
+                    stderr=subprocess.DEVNULL,
+                    env=env,
+                    # agy starts a language server of its own. Its own process
+                    # group lets the cleanup below reach anything it leaves behind.
+                    start_new_session=True,
+                )
+            except OSError:
+                return None, "Antigravity CLI could not be started"
+            try:
+                returncode = process.wait(timeout=ANTIGRAVITY_TIMEOUT_SECONDS)
+            except subprocess.TimeoutExpired:
+                _kill_session(process)
+                process.wait()
+                return None, "Antigravity usage report timed out"
+            # The report runs on every refresh, so a language server left behind
+            # would pile up one per refresh.
+            _kill_session(process)
+            output.seek(0)
+            stdout = output.read()
+    if returncode != 0:
+        return None, "Antigravity usage report failed"
+    try:
+        report = json.loads(stdout)
+    except (ValueError, TypeError):
+        return None, "Antigravity returned invalid usage JSON"
+    if not isinstance(report, dict) or report.get("status") != "SUCCESS":
+        return None, "Antigravity usage report failed"
+    return report, None
+
+
+def _kill_session(process: subprocess.Popen[Any]) -> None:
+    """SIGKILL whatever is still running in the process group of a report."""
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
+def antigravity_windows(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Quota buckets of a usage report as percent windows.
+
+    A bucket's remaining_fraction runs 0 to 1 and its window is "weekly" or
+    "5h". The CLI prints a bucket with no reset time and nothing left as
+    "disabled": the 5-hour allowance does not apply while the weekly cap is
+    spent, so it is left out rather than shown as an exhausted 5h window.
+    """
+    command = report.get("command")
+    data = command.get("data") if isinstance(command, dict) else None
+    groups = data.get("groups") if isinstance(data, dict) else None
+    if not isinstance(groups, list):
+        return []
+
+    ranked: list[tuple[int, dict[str, Any]]] = []
+    for group in groups:
+        if not isinstance(group, dict) or not isinstance(group.get("buckets"), list):
+            continue
+        raw_name = group.get("name")
+        family = ANTIGRAVITY_FAMILIES.get(raw_name, raw_name) if isinstance(raw_name, str) else ""
+        for bucket in group["buckets"]:
+            if not isinstance(bucket, dict):
+                continue
+            fraction = finite_number(bucket.get("remaining_fraction"))
+            if fraction is None or not math.isfinite(fraction):
+                continue
+            reset_at = bucket.get("reset_time")
+            if not isinstance(reset_at, str):
+                reset_at = None
+            if reset_at is None and fraction <= 0:
+                continue
+            kind = bucket.get("window") if isinstance(bucket.get("window"), str) else ""
+            period = ANTIGRAVITY_PERIODS.get(kind, kind)
+            label = " ".join(part for part in (family, period) if part) or "Antigravity"
+            bucket_id = bucket.get("id")
+            if not isinstance(bucket_id, str) or not bucket_id:
+                bucket_id = label
+            window = normalize_window({
+                "id": bucket_id,
+                "label": label,
+                "unit": "percent",
+                "used_percentage": (1 - min(1.0, fraction)) * 100,
+                "resetAt": reset_at,
+            }, bucket_id, label)
+            if window:
+                # The panel reads the first window as the session value and the
+                # rest as weekly ones, so 5h windows lead and the rest keep order.
+                ranked.append((0 if period == "5h" else 1, window))
+    return [window for _, window in sorted(ranked, key=lambda item: item[0])]
+
+
+def antigravity_source() -> dict[str, Any]:
+    """Antigravity's allowances, as the agy CLI reports them."""
+    program = antigravity_program()
+    if program is None:
+        return {"state": "unauthenticated", "detail": "Antigravity CLI (agy) is not installed"}
+    report, error = antigravity_report(program)
+    if report is None:
+        return {"state": "error", "detail": error}
+    windows = antigravity_windows(report)
+    if not windows:
+        return {"state": "unknown", "detail": "Antigravity returned no quota buckets"}
+    return {"state": "ok", "windows": windows, "detail": "Antigravity quota"}
+
+
 def shutil_which(command: str) -> str | None:
     for directory in os.environ.get("PATH", os.defpath).split(os.pathsep):
         candidate = Path(directory) / command
@@ -1219,6 +1380,8 @@ def auto_source(provider_id: str) -> dict[str, Any] | None:
         return copilot_source()
     if provider_id == "mistral":
         return mistral_source()
+    if provider_id == "antigravity":
+        return antigravity_source()
     # Claude's own /usage endpoint is authoritative and does not need Claude
     # Code to be running; the status-line cache is only a labelled fallback.
     if provider_id == "claude":

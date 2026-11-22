@@ -14,11 +14,14 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import shlex
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = Path(os.environ.get(
@@ -660,6 +663,140 @@ class CodexBarInteropTest(unittest.TestCase):
         """An unusable CodexBar must degrade to silence, not a broken row."""
         self.stub_cli({}, returncode=1)
         self.assertEqual(self.helper.codexbar_extra_providers(set()), [])
+
+
+class AntigravityTest(unittest.TestCase):
+    """Antigravity's quota comes from agy's own usage report, run as a process.
+
+    A stand-in agy prints a canned report, records how it was run, and can try
+    to open a browser the way a sign-in does, so the whole run is exercised
+    without the real CLI or any account.
+    """
+
+    def setUp(self):
+        self.helper = load_helper()
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+
+    def fake_agy(self, stdout, returncode=0, body=":"):
+        report = self.root / "report.txt"
+        report.write_text(stdout, encoding="utf-8")
+        record = self.root / "calls.txt"
+        program = self.root / "agy"
+        program.write_text("\n".join([
+            "#!/bin/sh",
+            f"printf '%s\\n' \"$@\" > {shlex.quote(str(record))}",
+            f"printf 'auto_update=%s browser=%s\\n' \"$AGY_CLI_DISABLE_AUTO_UPDATE\" \"$BROWSER\" >> {shlex.quote(str(record))}",
+            body,
+            f"cat {shlex.quote(str(report))}",
+            f"exit {returncode}",
+            "",
+        ]), encoding="utf-8")
+        program.chmod(0o755)
+        return str(program), record
+
+    def test_quota_buckets_become_percent_windows(self):
+        windows = {w["label"]: w for w in self.helper.antigravity_windows(fixture("antigravity-usage.json"))}
+        # A 0.75 remaining fraction is 75% left, 25% used, with the bucket's reset.
+        self.assertAlmostEqual(windows["Gemini 7d"]["remaining"], 75.0)
+        self.assertAlmostEqual(windows["Gemini 7d"]["used"], 25.0)
+        self.assertEqual(windows["Gemini 7d"]["unit"], "percent")
+        self.assertEqual(windows["Gemini 7d"]["resetAt"], "2026-11-29T16:28:57Z")
+        self.assertAlmostEqual(windows["Claude/GPT 7d"]["remaining"], 40.0)
+
+    def test_disabled_five_hour_bucket_is_not_reported(self):
+        """The CLI prints a bucket with no reset and nothing left as "disabled":
+        the 5h window does not apply, so it must not show as an exhausted one."""
+        labels = [w["label"] for w in self.helper.antigravity_windows(fixture("antigravity-usage.json"))]
+        self.assertEqual(labels, ["Gemini 7d", "Claude/GPT 7d"])
+
+    def test_active_five_hour_window_leads_the_weekly_ones(self):
+        """The panel reads the first window as the session value, so 5h leads."""
+        report = fixture("antigravity-usage.json")
+        five_hour = report["command"]["data"]["groups"][1]["buckets"][1]
+        five_hour["remaining_fraction"] = 0.6
+        five_hour["reset_time"] = "2026-11-22T16:00:00Z"
+        labels = [w["label"] for w in self.helper.antigravity_windows(report)]
+        self.assertEqual(labels, ["Claude/GPT 5h", "Gemini 7d", "Claude/GPT 7d"])
+
+    def test_malformed_bucket_is_skipped_rather_than_zeroed(self):
+        report = fixture("antigravity-usage.json")
+        report["command"]["data"]["groups"][0]["buckets"][0]["remaining_fraction"] = "0.5"
+        labels = [w["label"] for w in self.helper.antigravity_windows(report)]
+        self.assertEqual(labels, ["Claude/GPT 7d"])
+
+    def test_report_runs_as_print_mode_usage_without_updates_or_a_browser(self):
+        program, record = self.fake_agy(json.dumps(fixture("antigravity-usage.json")))
+        report, error = self.helper.antigravity_report(program)
+        self.assertIsNone(error)
+        self.assertEqual(report["status"], "SUCCESS")
+        self.assertEqual(record.read_text(encoding="utf-8").splitlines(), [
+            "-p", "/usage", "--output-format", "json",
+            "auto_update=true browser=/bin/false",
+        ])
+
+    def test_sign_in_that_asks_for_a_browser_opens_none(self):
+        """A signed-out refresh must not pop a browser window every time it runs."""
+        bin_dir = self.root / "bin"
+        bin_dir.mkdir()
+        opened = self.root / "opened.txt"
+        system_opener = bin_dir / "xdg-open"
+        system_opener.write_text(f"#!/bin/sh\necho opened > {shlex.quote(str(opened))}\n", encoding="utf-8")
+        system_opener.chmod(0o755)
+        program, _ = self.fake_agy(
+            json.dumps(fixture("antigravity-usage.json")),
+            body="xdg-open https://accounts.example.invalid/signin",
+        )
+        with mock.patch.dict(os.environ, {"PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}"}):
+            report, _ = self.helper.antigravity_report(program)
+        self.assertIsNotNone(report)
+        self.assertFalse(opened.exists())
+
+    def test_failed_report_is_an_error_not_a_zero(self):
+        program, _ = self.fake_agy(json.dumps(fixture("antigravity-usage.json")), returncode=1)
+        self.assertEqual(self.helper.antigravity_report(program),
+                         (None, "Antigravity usage report failed"))
+
+    def test_report_that_did_not_succeed_is_an_error(self):
+        program, _ = self.fake_agy(json.dumps({"status": "FAILURE"}))
+        self.assertEqual(self.helper.antigravity_report(program),
+                         (None, "Antigravity usage report failed"))
+
+    def test_unparseable_report_is_an_error(self):
+        program, _ = self.fake_agy("not json")
+        self.assertEqual(self.helper.antigravity_report(program),
+                         (None, "Antigravity returned invalid usage JSON"))
+
+    def test_hung_report_is_abandoned_and_its_children_are_killed(self):
+        """A language server left running would pile up one per refresh."""
+        self.helper.ANTIGRAVITY_TIMEOUT_SECONDS = 1
+        program, _ = self.fake_agy("", body="sleep 30")
+        started = time.monotonic()
+        report, error = self.helper.antigravity_report(program)
+        self.assertIsNone(report)
+        self.assertEqual(error, "Antigravity usage report timed out")
+        self.assertLess(time.monotonic() - started, 10)
+
+    def test_source_reports_the_buckets_agy_returns(self):
+        program, _ = self.fake_agy(json.dumps(fixture("antigravity-usage.json")))
+        self.helper.antigravity_program = lambda: program
+        record = self.helper.antigravity_source()
+        self.assertEqual(record["state"], "ok")
+        self.assertEqual([w["label"] for w in record["windows"]], ["Gemini 7d", "Claude/GPT 7d"])
+        self.assertAlmostEqual(record["windows"][0]["remaining"], 75.0)
+
+    def test_report_without_quota_buckets_is_unknown_not_zero(self):
+        empty = {"status": "SUCCESS", "command": {"name": "usage", "data": {"groups": []}}}
+        program, _ = self.fake_agy(json.dumps(empty))
+        self.helper.antigravity_program = lambda: program
+        record = self.helper.antigravity_source()
+        self.assertEqual(record["state"], "unknown")
+        self.assertNotIn("windows", record)
+
+    def test_missing_agy_is_unauthenticated(self):
+        self.helper.antigravity_program = lambda: None
+        self.assertEqual(self.helper.antigravity_source()["state"], "unauthenticated")
 
 
 class NoNetworkTest(unittest.TestCase):

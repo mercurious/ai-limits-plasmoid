@@ -1,0 +1,57 @@
+{
+  "conversation_id": "",
+  "status": "SUCCESS",
+  "duration_seconds": 0,
+  "num_turns": 0,
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "thinking_tokens": 0,
+    "cache_read_tokens": 0,
+    "total_tokens": 0
+  },
+  "command": {
+    "name": "usage",
+    "data": {
+      "description": "Within each group, models share a weekly limit and a 5-hour limit.",
+      "groups": [
+        {
+          "name": "Gemini Models",
+          "description": "Models within this group: Gemini 3.8 Flash",
+          "buckets": [
+            {
+              "id": "gemini-weekly",
+              "name": "Weekly Limit Remaining",
+              "description": "You have used some of your weekly limit.",
+              "window": "weekly",
+              "remaining_fraction": 0.75,
+              "reset_time": "2026-11-29T16:28:57Z"
+            }
+          ]
+        },
+        {
+          "name": "Claude and GPT models",
+          "description": "Models within this group: Claude Sonnet 4.6, Claude Opus 4.6, GPT-OSS 120B",
+          "buckets": [
+            {
+              "id": "3p-weekly",
+              "name": "Weekly Limit Remaining",
+              "description": "You have used some of your weekly limit.",
+              "window": "weekly",
+              "remaining_fraction": 0.4,
+              "reset_time": "2026-11-29T16:38:39Z"
+            },
+            {
+              "id": "3p-5h",
+              "name": "Five Hour Limit Remaining",
+              "description": "You have hit your weekly limit, the 5-hour limit does not currently apply.",
+              "window": "5h",
+              "remaining_fraction": 0,
+              "reset_time": null
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+
+- New: Antigravity's Gemini and Claude/GPT allowances, read from the `agy`
+  CLI's own `/usage` report. Install `agy` and sign in once; the widget never
+  reads or copies the login. The 5-hour allowance appears only while it
+  applies, and is left out while the CLI reports it as disabled.
+
 ## 1.4.1
 
 - Fixed: a Codex login whose refresh token CLIProxyAPI had already rotated

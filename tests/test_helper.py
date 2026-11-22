@@ -40,7 +40,7 @@ class HelperTest(unittest.TestCase):
         payload = self.run_helper()
         self.assertEqual(payload["version"], 2)
         self.assertEqual([p["id"] for p in payload["providers"]],
-                         ["codex", "claude", "copilot", "mistral"])
+                         ["codex", "claude", "copilot", "mistral", "antigravity"])
         self.assertTrue(all(p["state"] == "unsupported" for p in payload["providers"]))
         self.assertTrue(all(p["remaining"] is None for p in payload["providers"]))
 
@@ -53,7 +53,7 @@ class HelperTest(unittest.TestCase):
                 }
             }
         })
-        codex, claude, _, _ = payload["providers"]
+        codex, claude, _, _, _ = payload["providers"]
         self.assertEqual(codex["remaining"], 75)
         self.assertEqual(codex["state"], "ok")
         self.assertIsNone(claude["remaining"])
@@ -101,7 +101,7 @@ class HelperTest(unittest.TestCase):
                 }
             }
         })
-        codex, claude, copilot, _ = payload["providers"]
+        codex, claude, copilot, _, _ = payload["providers"]
         self.assertEqual(codex["unit"], "percent")
         self.assertEqual(codex["remaining"], 0)
         self.assertEqual(claude["unit"], "percent")

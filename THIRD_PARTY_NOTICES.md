@@ -10,8 +10,9 @@ sources below.
 | `claude-symbolic.svg` | [Lobe Icons](https://github.com/lobehub/lobe-icons), `@lobehub/icons-static-svg` | MIT |
 | `copilot-symbolic.svg` | [Primer Octicons](https://github.com/primer/octicons), `mark-github-24` | MIT |
 | `mistral-symbolic.svg` | [Lobe Icons](https://github.com/lobehub/lobe-icons), `@lobehub/icons-static-svg` | MIT |
+| `antigravity-symbolic.svg` | [Lobe Icons](https://github.com/lobehub/lobe-icons), `@lobehub/icons-static-svg` | MIT |
 
-The MIT terms are compatible with GPL-3.0-or-later, so those three files are
+The MIT terms are compatible with GPL-3.0-or-later, so those four files are
 redistributed as part of this GPL work with their copyright notices intact.
 
 `codex-symbolic.svg` carries no open-source license. It is OpenAI's brand
